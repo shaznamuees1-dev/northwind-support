@@ -85,6 +85,20 @@ Both pass on a clean checkout and neither needs a database.
 
 ## API at a glance
 
+### DEFECT-117 (Task 1.1)
+
+The ticket-list request effect originally watched only selected filter fields, so changing a
+filter not included in that dependency list (such as Status) did not issue a request. Search
+later triggered the effect and made the earlier status appear to work. The hook now compares the
+complete request-filter snapshot, requests changed filters immediately, and uses a separate
+debounced search value so typing does not send a request per keystroke. The regression test
+checks the actual `/api/tickets` request and query parameters, including a settled search combined
+with the current status. Verify with:
+
+```bash
+npm run test --workspace apps/web -- src/features/tickets/hooks/useTicketList.test.ts
+```
+
 | Endpoint | Description |
 | --- | --- |
 | `GET /api/tickets` | Paged list with `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. **Filters are accepted but not applied yet** (Task 1). |
