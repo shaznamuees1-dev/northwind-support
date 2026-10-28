@@ -203,6 +203,7 @@ password reset, roles, OAuth/SSO, refresh tokens and MFA are not implemented.
 ## Submission checklist
 
 -**Fork URL:** https://github.com/shaznamuees1-dev/northwind-support
+
 -**Actual time spent by task (approximate):**
 - Environment setup and troubleshooting: ~2 hours
 - Task 1.1 — Defect fix and regression tests: ~1 hour
