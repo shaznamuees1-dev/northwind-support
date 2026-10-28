@@ -35,7 +35,7 @@ Full requirements are in **[`ASSIGNMENT_CANDIDATE.md`](ASSIGNMENT_CANDIDATE.md)*
 1. Update this **README** with what you built, your design decisions (chosen, rejected and why),
    the defect's root cause, dev login credentials, how to run and test it, AI usage, and known
    limitations. A reviewer must be able to run it without asking you anything.
-2. Add an **APPROACH.md** explaining your approach and thought process for each task.
+2. Read **[APPROACH.md](APPROACH.md)** for the implementation approach and current gaps.
 3. Commit both, then send us the **link to your fork**, the **dev login credentials**, and a
    **rough note of time spent** on what. (If the fork is private, add the reviewers as collaborators.)
 
@@ -46,7 +46,7 @@ Full requirements are in **[`ASSIGNMENT_CANDIDATE.md`](ASSIGNMENT_CANDIDATE.md)*
 **Prerequisites:** .NET SDK 10 (`global.json`), Node.js 22 (`.nvmrc`; 20.19+ works), Docker.
 
 ```bash
-cp .env.example .env          # optional, every value has a working default
+cp .env.example .env          # optional local overrides; never commit .env
 npm install                   # installs the web app
 npm run db:up                 # SQL Server 2022 in Docker on localhost:1433
 npm run api                   # terminal 1: migrates, seeds, then serves the API
@@ -59,19 +59,33 @@ npm run web                   # terminal 2: React dev server
 | API | https://localhost:7043 (also http://localhost:5043) |
 | Swagger | https://localhost:7043/swagger |
 
-In Development the API applies migrations and seeds demo data on startup. **Never commit real
-credentials.**
+The committed Compose and Development defaults use host port 1433. In Development the API applies
+migrations and seeds demo data on startup. The Compose password is a throwaway local fixture;
+override it in the ignored `.env` file when needed. Never commit real credentials.
 
 **Visual Studio 2026:** run `npm run db:up`, open `SupportDesk.sln`, set
 **SupportDesk.Presentation** as the startup project, and press F5 on the **https** profile.
 
-## Tests
+**Port conflict:** If host port 1433 is already in use, change the host side of the SQL mapping in
+your local `docker-compose.yml` and set `ConnectionStrings__Default` in your local `.env` to the
+same host port. Keep the container port at 1433. These are machine-specific overrides, not the
+committed default.
+
+## Tests and verified results
 
 ```bash
-npm test                      # dotnet test, then the web tests (Vitest)
+npm test                      # full .NET and web test suites
+dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --no-restore
+dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --filter FullyQualifiedName~TicketQueriesTests --no-restore
+npm run test --workspace apps/web -- src/features/tickets/hooks/useTicketList.test.ts
 ```
 
-Both pass on a clean checkout and neither needs a database.
+Verified during this work: the API unit-test project passed **39/39**, including the ticket-query
+and ticket-creation tests; the focused SQLite query tests passed **7/7**; the focused DEFECT-117
+Vitest file passed **2/2**. The Presentation project build succeeded with 0 errors and 4 existing
+NuGet vulnerability warnings (`NU1902` and `NU1903`). The SQLite query tests exercise EF Core
+translation against SQLite; they do not claim to be a SQL Server integration run. The full
+`npm test` command was not run for this documentation update.
 
 ## Commands
 
@@ -108,9 +122,9 @@ counting, sorting and paging, so totals and page counts describe only matching t
 predicates are isolated in `TicketQueries.ApplyFilters`, making an additional filter a small
 query extension rather than a rewrite.
 
-The focused SQLite-backed integration tests exercise EF query translation, priority filtering,
-combined filters, customer-name search, blank-search handling, unassigned filtering, and filtered
-counts across pages. Run them with:
+The SQLite-backed query tests exercise EF query translation, priority filtering, combined
+filters, title/reference/customer-name search, blank-search handling, assigned/unassigned
+filtering, and filtered counts across pages. Run them with:
 
 ```bash
 dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --filter FullyQualifiedName~TicketQueriesTests --no-restore
@@ -132,26 +146,30 @@ dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --
 BR-4–BR-8 are not implemented. Assignment, escalation/history, configurable at-risk evaluation,
 the complete triage explanation object, and the SLA filter remain outstanding.
 
-### Remaining assessment scope
+### Architecture and design decisions
 
-- **Task 3 (AU-1–AU-13):** Not implemented. Authentication and protected endpoints remain outstanding.
-- **Task 4 (DK-1–DK-8):** Not implemented. API containerization requirements remain outstanding.
+- The application handlers own ticket creation decisions; domain category flags carry specialist
+  and forced-priority behavior without hard-coding category names in the handler.
+- SLA windows are bound from the `Sla` configuration section. `IClock` supplies creation time,
+  keeping time-dependent behavior testable.
+- List filters are composed as `IQueryable` predicates in infrastructure and applied before
+  counting and paging. The separate filter method allows later filters to be added without
+  restructuring the query.
+- For DEFECT-117, filtering in React, forcing a reload, or remounting the list were rejected:
+  those approaches mask a missing request trigger and can conflict with server paging. The hook
+  observes the complete filter snapshot, while search uses a separate debounce.
+- Filtering tests use SQLite to exercise EF query translation without requiring a live SQL Server.
+  Production execution is still against SQL Server.
 
-**Design decisions and limitations:** Search trims surrounding whitespace and ignores blank values;
-`Contains` is applied to title, reference, and joined customer name in SQL. Filter matching and
-pagination run in the database; no client-side filtering was added. This task does not add
-index/migration changes or change SQL Server configuration.
+### Authentication and development login
 
-**AI usage:** AI assistance was used to inspect the existing query/test structure, implement the
-filters and focused SQLite-backed tests, and update this documentation. The changes and test
-results were reviewed locally; AI-generated changes should be understood and verified by the
-candidate before submission.
+Authentication is **not implemented**. There is no development login or password to provide.
 
 | Endpoint | Description |
 | --- | --- |
 | `GET /api/tickets` | Paged list with database-side `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, and `unassignedOnly` filters, plus sorting and paging. |
 | `GET /api/tickets/{id}` | One ticket |
-| `POST /api/tickets` | Create a ticket |
+| `POST /api/tickets` | Create a ticket with BR-1–BR-3 priority and SLA calculation |
 | `PATCH /api/tickets/{id}/status` · `/assignment` | Change status / assignee |
 | `GET /api/customers` · `/api/agents` · `/api/categories` | Reference data |
 
@@ -160,20 +178,41 @@ Errors are `ProblemDetails`: `400` validation, `404` not found, `409` conflict o
 **Seed data:** 5 categories, 6 customers (3 Premium), 6 agents (one inactive, one at their limit)
 and 40 tickets across every status, priority and SLA state.
 
+### AI usage
+
+AI assistance was used to inspect the existing code and assessment, implement the completed
+changes, create focused tests, and draft documentation. The workflow was to trace behavior through
+the existing API/domain/UI layers, make focused edits, then run targeted tests and inspect their
+actual output. The `IQueryable` filter helper was retained after checking its placement before
+counting/paging and passing the focused SQLite tests. An initial ticket-query test used a
+lowercase customer search against case-sensitive SQLite fixture data; the assertion input was
+corrected to match the fixture. A React test run also exposed spy cleanup and `act(...)`
+synchronization issues, which were corrected before the focused test passed. Client-side filtering,
+forced reloads, and remount keys were rejected because they would hide the request-trigger defect.
+No test result is inferred from generated code; results above are from actual runs. The candidate
+must review and be prepared to explain all submitted code.
+
 ## Known limitations
 
 Task 2 is partial: BR-1–BR-3 are implemented on ticket creation; triage explanations, eligible
 agent assignment, escalation, immutable escalation history, complete SLA status handling and
 SLA filtering/UI remain incomplete. Task 3 authentication is not implemented. Task 4 container
-packaging requirements are not implemented. The existing development SQL port mapping is local
-environment configuration and is intentionally not part of the Task 1.2 implementation.
+packaging requirements are not implemented. Out-of-scope capabilities such as registration,
+password reset, roles, OAuth/SSO, refresh tokens and MFA are not implemented.
+
+## Submission checklist
+
+- Fork URL: **[FILL IN FORK URL]**
+- Actual time spent by task: **[FILL IN ACTUAL TIME]**
+- Development login: **None; authentication is not implemented.**
+- Commits: DEFECT-117 `b85ff82`; Task 1.2 filtering `88a784e`; partial Task 2 BR-1–BR-3 `bd27a27`.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
 | API cannot reach the database | `npm run db:up`, wait ~20 s, check `docker compose ps` |
-| Port 1433 already in use | Change the port in `docker-compose.yml` and `.env` |
+| SQL Server port 1433 already in use | Use the machine-specific port override described under Quick start; keep the SQL Server container's internal port at 1433. |
 | Browser warns about the certificate | `dotnet dev-certs https --trust`, or use the web app, which proxies |
 | Web app shows "Unable to load tickets" | The API is not running, or `VITE_API_PROXY_TARGET` points at the wrong port |
 | SQL Server slow on Apple Silicon | Enable Rosetta in Docker Desktop → Settings → General |
