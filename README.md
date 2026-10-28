@@ -202,8 +202,13 @@ password reset, roles, OAuth/SSO, refresh tokens and MFA are not implemented.
 
 ## Submission checklist
 
-- Fork URL: **[FILL IN FORK URL]**
-- Actual time spent by task: **[FILL IN ACTUAL TIME]**
+-**Fork URL:** https://github.com/shaznamuees1-dev/northwind-support
+-**Actual time spent by task (approximate):**
+- Environment setup and troubleshooting: ~2 hours
+- Task 1.1 — Defect fix and regression tests: ~1 hour
+- Task 1.2 — Server-side filtering and tests: ~1 hour
+- Task 2 — Partial implementation (BR-1–BR-3): ~1 hour
+- Documentation, verification and Git: ~1 hour
 - Development login: **None; authentication is not implemented.**
 - Commits: DEFECT-117 `b85ff82`; Task 1.2 filtering `88a784e`; partial Task 2 BR-1–BR-3 `bd27a27`.
 
