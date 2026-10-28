@@ -99,9 +99,42 @@ with the current status. Verify with:
 npm run test --workspace apps/web -- src/features/tickets/hooks/useTicketList.test.ts
 ```
 
+### Task 1.2: server-side ticket filtering
+
+`GET /api/tickets` applies exact-match status, priority, category, customer and assigned-agent
+filters, plus unassigned-only and trimmed title/reference/customer-name search. All supplied
+conditions combine with AND. EF Core composes these predicates on the database query before
+counting, sorting and paging, so totals and page counts describe only matching tickets. The
+predicates are isolated in `TicketQueries.ApplyFilters`, making an additional filter a small
+query extension rather than a rewrite.
+
+The focused SQLite-backed integration tests exercise EF query translation, priority filtering,
+combined filters, customer-name search, blank-search handling, unassigned filtering, and filtered
+counts across pages. Run them with:
+
+```bash
+dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --filter FullyQualifiedName~TicketQueriesTests --no-restore
+```
+
+### Remaining assessment scope
+
+- **Task 2 (BR-1–BR-8):** Not implemented. Priority/SLA triage, assignment/escalation/history, and the SLA filter/UI remain outstanding.
+- **Task 3 (AU-1–AU-13):** Not implemented. Authentication and protected endpoints remain outstanding.
+- **Task 4 (DK-1–DK-8):** Not implemented. API containerization requirements remain outstanding.
+
+**Design decisions and limitations:** Search trims surrounding whitespace and ignores blank values;
+`Contains` is applied to title, reference, and joined customer name in SQL. Filter matching and
+pagination run in the database; no client-side filtering was added. This task does not add
+index/migration changes or change SQL Server configuration.
+
+**AI usage:** AI assistance was used to inspect the existing query/test structure, implement the
+filters and focused SQLite-backed tests, and update this documentation. The changes and test
+results were reviewed locally; AI-generated changes should be understood and verified by the
+candidate before submission.
+
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/tickets` | Paged list with `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, `unassignedOnly`, `sortBy`, `sortDirection`. **Filters are accepted but not applied yet** (Task 1). |
+| `GET /api/tickets` | Paged list with database-side `search`, `status`, `priority`, `categoryId`, `customerId`, `assignedAgentId`, and `unassignedOnly` filters, plus sorting and paging. |
 | `GET /api/tickets/{id}` | One ticket |
 | `POST /api/tickets` | Create a ticket |
 | `PATCH /api/tickets/{id}/status` · `/assignment` | Change status / assignee |
@@ -111,6 +144,13 @@ Errors are `ProblemDetails`: `400` validation, `404` not found, `409` conflict o
 
 **Seed data:** 5 categories, 6 customers (3 Premium), 6 agents (one inactive, one at their limit)
 and 40 tickets across every status, priority and SLA state.
+
+## Known limitations
+
+Tasks 2–4 are incomplete as listed above. In particular, the API does not yet implement triage,
+escalation, escalation history, or authentication, and is not packaged to meet the optional
+Docker assessment requirements. The existing development SQL port mapping is local environment
+configuration and is intentionally not part of the Task 1.2 implementation.
 
 ## Troubleshooting
 
