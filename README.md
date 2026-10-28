@@ -116,9 +116,24 @@ counts across pages. Run them with:
 dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --filter FullyQualifiedName~TicketQueriesTests --no-restore
 ```
 
+### Task 2 progress
+
+**Partially implemented:** ticket creation applies BR-1–BR-3: requested priority defaults to Medium,
+categories flagged `ForcesCriticalPriority` force Critical, and the due date is calculated from
+the configured per-priority SLA window. Premium customers receive the configured multiplier with
+the configured minimum-window floor. Settings are read from the existing `Sla` configuration
+section. The create response includes the resulting priority, due date and derived SLA status.
+Verify the focused command tests with:
+
+```bash
+dotnet test apps/api/tests/SupportDesk.UnitTests/SupportDesk.UnitTests.csproj --filter FullyQualifiedName~RaiseTicketCommandHandlerTests --no-restore
+```
+
+BR-4–BR-8 are not implemented. Assignment, escalation/history, configurable at-risk evaluation,
+the complete triage explanation object, and the SLA filter remain outstanding.
+
 ### Remaining assessment scope
 
-- **Task 2 (BR-1–BR-8):** Not implemented. Priority/SLA triage, assignment/escalation/history, and the SLA filter/UI remain outstanding.
 - **Task 3 (AU-1–AU-13):** Not implemented. Authentication and protected endpoints remain outstanding.
 - **Task 4 (DK-1–DK-8):** Not implemented. API containerization requirements remain outstanding.
 
@@ -147,10 +162,11 @@ and 40 tickets across every status, priority and SLA state.
 
 ## Known limitations
 
-Tasks 2–4 are incomplete as listed above. In particular, the API does not yet implement triage,
-escalation, escalation history, or authentication, and is not packaged to meet the optional
-Docker assessment requirements. The existing development SQL port mapping is local environment
-configuration and is intentionally not part of the Task 1.2 implementation.
+Task 2 is partial: BR-1–BR-3 are implemented on ticket creation; triage explanations, eligible
+agent assignment, escalation, immutable escalation history, complete SLA status handling and
+SLA filtering/UI remain incomplete. Task 3 authentication is not implemented. Task 4 container
+packaging requirements are not implemented. The existing development SQL port mapping is local
+environment configuration and is intentionally not part of the Task 1.2 implementation.
 
 ## Troubleshooting
 

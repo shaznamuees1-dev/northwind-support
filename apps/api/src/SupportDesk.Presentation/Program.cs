@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using SupportDesk.Application;
+using SupportDesk.Application.Features.Tickets.Commands.RaiseTicket;
 using SupportDesk.Infrastructure;
 using SupportDesk.Presentation.Extensions;
 using SupportDesk.Presentation.Filters;
@@ -29,6 +30,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection("Sla").Get<SlaOptions>() ?? new SlaOptions());
 
 var app = builder.Build();
 

@@ -17,32 +17,42 @@ public sealed class RaiseTicketCommandHandler(
     ICategoryRepository categories,
     IUnitOfWork unitOfWork,
     IClock clock,
+    SlaOptions slaOptions,
     GetTicketQueryHandler getTicket,
     ILogger<RaiseTicketCommandHandler> logger)
 {
     /// <exception cref="NotFoundException">The customer or the category does not exist.</exception>
     public async Task<TicketDetailDto> HandleAsync(CreateTicketRequest request, CancellationToken ct)
     {
-        if (!await customers.ExistsAsync(request.CustomerId, ct))
+        var customer = await customers.GetByIdAsync(request.CustomerId, ct);
+        if (customer is null)
         {
             throw new NotFoundException("Customer", request.CustomerId);
         }
 
-        if (!await categories.ExistsAsync(request.CategoryId, ct))
+        var category = await categories.GetByIdAsync(request.CategoryId, ct);
+        if (category is null)
         {
             throw new NotFoundException("Category", request.CategoryId);
         }
 
-        // The response window is still worked out by hand by the team lead, so a new ticket
-        // starts with no due date and no owner.
+        var priority = category.ForcesCriticalPriority
+            ? TicketPriority.Critical
+            : request.RequestedPriority ?? TicketPriority.Medium;
+        var now = clock.UtcNow;
+        var windowHours = slaOptions.GetWindowHours(
+            priority,
+            customer.Tier == SupportDesk.Domain.Aggregates.Customers.CustomerTier.Premium);
+
         var ticket = Ticket.Raise(
             await tickets.NextReferenceAsync(ct),
             request.Title,
             request.Description,
             request.CustomerId,
             request.CategoryId,
-            request.RequestedPriority ?? TicketPriority.Medium,
-            clock.UtcNow);
+            priority,
+            now,
+            now.AddHours(windowHours));
 
         await tickets.AddAsync(ticket, ct);
         await unitOfWork.SaveChangesAsync(ct);
